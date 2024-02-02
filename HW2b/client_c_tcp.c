@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     
     // Receive response from server
     while (1) {
-        int len = recv(sockfd, buffer, sizeof(buffer), 0);
+        int len = recv(sockfd, buffer, sizeof(buffer)-1, 0);
             if (len <= 0) {
                 if (len == 0) {
                     // Server closed the connection
@@ -68,7 +68,13 @@ int main(int argc, char *argv[]) {
                 break; // Exit loop
             }
         buffer[len] = '\0'; // Null-terminate the received string
-        printf("From server: %s\n", buffer);
+        // Tokenize the buffer and print each token
+        char* token = strtok(buffer, ",");
+        while (token != NULL) {
+            printf("From server: %s\n", token);
+            token = strtok(NULL, ","); // Get the next token
+        }
+        // printf("From server: %s\n", buffer);
     }
 
     // Close the socket

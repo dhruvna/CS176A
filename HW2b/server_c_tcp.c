@@ -16,7 +16,7 @@ int sum_of_digits(const char *str, char *response) {
         }
         sum += str[i] - '0';
     }
-    sprintf(response, "%d", sum); // Convert sum into string
+    sprintf(response, "%d,", sum); // Convert sum into string
     return sum; // Return sum to check if it's a single digit
 }
 
@@ -73,25 +73,26 @@ int main(int argc, char *argv[]) {
 
         // Receive message from client
         int len = recv(new_socket, buffer, BUFFER_SIZE, 0);
-        // printf("Received: %s\n", buffer);
+        printf("Received: %s\n", buffer);
         if (len > 0) {
             buffer[len] = '\0';
 
             int sum = sum_of_digits(buffer, response);
-            char* str = malloc (sizeof(response) + 2);
-            strcpy(str, response);
-            strcat(str, "\n");
+            // char* str = malloc (sizeof(response) + 2);
+            // strcpy(str, response);
+            // strcat(str, "\n");
             // Send initial response or error message
             send(new_socket, response, strlen(response), 0);
-            // printf("Sent: %s\n", response);
+            printf("Sent: %s\n", response);
             // For any subsequent sums if needed
             while (sum >= 10) {
                 strcpy(tempBuffer, response); // Use the previous response as the next input
                 sum = sum_of_digits(tempBuffer, response); // Calculate the new sum
-                char* str = malloc (sizeof(response) + 2);
-                strcpy(str, response);
-                strcat(str, "\n");
+                // char* str = malloc (sizeof(response) + 2);
+                // strcpy(str, response);
+                // strcat(str, "\n");
                 send(new_socket, response, strlen(response), 0); // Send intermediate sum
+                printf("Sent: %s\n", response);
             }
         }
 
