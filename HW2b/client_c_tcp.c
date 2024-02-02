@@ -6,9 +6,9 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 129 //128 is the max string length, include 1 more to null terminate it
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) { //take in server ip and port
     if(argc != 3) {
         printf("Usage: %s <server_ip> <port>\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     // Set server address
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
-    if (inet_pton(AF_INET, SERVER_IP, &serverAddr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, SERVER_IP, &serverAddr.sin_addr) <= 0) { //bind to specific ip and port
         perror("Invalid address/Address not supported");
         exit(EXIT_FAILURE);
     }
@@ -41,9 +41,8 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    // Connection established, do something...
     // Get input from user
-    printf("Enter string: ");
+    printf("Enter string: "); 
     fgets(buffer, BUFFER_SIZE, stdin);
     buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
     // printf("Sending: %s\n", buffer);
@@ -54,29 +53,31 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    // Receive response from server
-    while (1) {
-        int len = recv(sockfd, buffer, sizeof(buffer)-1, 0);
-            if (len <= 0) {
-                if (len == 0) {
-                    // Server closed the connection
-                    // printf("Server closed the connection.\n");
-                } else {
-                    // An error occurred
-                    perror("Failed to receive data from server");
-                }
-                break; // Exit loop
+    int bytesReceived;
+    // Read data from the server
+    while ((bytesReceived = recv(sockfd, buffer, BUFFER_SIZE, 0)) > 0) {
+        buffer[bytesReceived] = '\0'; // Null-terminate the received data
+        
+        char *ptr = buffer; // Pointer to track the current position in the buffer
+        char *end; // Pointer to track the end of the current message
+        while ((end = strchr(ptr, '\n')) != NULL) {
+            *end = '\0'; // Replace the newline with a null terminator to create a string for the current message
+            if (*ptr) { // If the string is not empty
+                printf("From server: %s\n", ptr); // Print the message
             }
-        buffer[len] = '\0'; // Null-terminate the received string
-        // Tokenize the buffer and print each token
-        char* token = strtok(buffer, ",");
-        while (token != NULL) {
-            printf("From server: %s\n", token);
-            token = strtok(NULL, ","); // Get the next token
+            ptr = end + 1; // Move past the current message
         }
-        // printf("From server: %s\n", buffer);
+
+        if (*ptr) { // If there's remaining text after the last newline, print it
+            printf("From server: %s\n", ptr);
+        }
     }
 
+    if (bytesReceived < 0) {
+        perror("recv failed");
+    } else if (bytesReceived == 0) {
+        // printf("Server closed the connection.\n");
+    }
     // Close the socket
     close(sockfd);
     return 0;

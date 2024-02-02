@@ -5,7 +5,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
-#define BUFFER_SIZE 130 //128 is the max string length, include 1 more to null terminate it
+#define BUFFER_SIZE 129 //128 is the max string length, include 1 more to null terminate it
 
 int sum_of_digits(const char *str, char *response) { //take in string input, create a string response
     int sum = 0;
@@ -21,7 +21,7 @@ int sum_of_digits(const char *str, char *response) { //take in string input, cre
     return sum;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) { // take in port number
     if (argc != 2) {
         printf("Usage: %s <port>\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
 
-    // Bind socket to the specified address and port (test with 127.0.0.1)
+    // Bind socket to the specified port 
     if (bind(sockfd, (const struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Binding failed");
         exit(EXIT_FAILURE);
@@ -55,9 +55,11 @@ int main(int argc, char *argv[]) {
         char response[BUFFER_SIZE] = {0};
         char tempBuffer[BUFFER_SIZE] = {0}; // Temporary buffer for intermediate sums
 
+        // Receive data from client
         int len = recvfrom(sockfd, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&client_addr, &addr_len);
-        buffer[len] = '\0';
+        buffer[len] = '\0'; // Null-terminate the received string
 
+        // Calculate sum of digits
         int sum = sum_of_digits(buffer, response);
 
         // Send initial response or error message

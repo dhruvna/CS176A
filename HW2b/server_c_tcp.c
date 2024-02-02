@@ -5,22 +5,23 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 129 //128 is the max string length, include 1 more to null terminate it
 
-int sum_of_digits(const char *str, char *response) {
+int sum_of_digits(const char *str, char *response) { //take in string input, create a string response
     int sum = 0;
     for (int i = 0; str[i] != '\0'; ++i) {
+        if (str[i] == '\n') continue;
         if (str[i] < '0' || str[i] > '9') { //compare character with these ascii values essentially
             strcpy(response, "Sorry, cannot compute!");
             return -1; //if out of bounds return and respond accordingly
         }
         sum += str[i] - '0';
     }
-    sprintf(response, "%d,", sum); // Convert sum into string
+    sprintf(response, "%d\n", sum); // Convert sum into string
     return sum; // Return sum to check if it's a single digit
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) { // take in port number
     if (argc != 2) {
         printf("Usage: %s <port>\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -48,7 +49,7 @@ int main(int argc, char *argv[]) {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
 
-    // Bind socket to the specified address and port
+    // Bind socket to the specified port
     if (bind(sockfd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("Binding failed");
         exit(EXIT_FAILURE);
@@ -73,26 +74,20 @@ int main(int argc, char *argv[]) {
 
         // Receive message from client
         int len = recv(new_socket, buffer, BUFFER_SIZE, 0);
-        printf("Received: %s\n", buffer);
+        // printf("Received: %s\n", buffer);
         if (len > 0) {
             buffer[len] = '\0';
-
+            // Calculate sum of digits
             int sum = sum_of_digits(buffer, response);
-            // char* str = malloc (sizeof(response) + 2);
-            // strcpy(str, response);
-            // strcat(str, "\n");
             // Send initial response or error message
             send(new_socket, response, strlen(response), 0);
-            printf("Sent: %s\n", response);
+            // printf("Sent: %s\n", response);
             // For any subsequent sums if needed
             while (sum >= 10) {
                 strcpy(tempBuffer, response); // Use the previous response as the next input
                 sum = sum_of_digits(tempBuffer, response); // Calculate the new sum
-                // char* str = malloc (sizeof(response) + 2);
-                // strcpy(str, response);
-                // strcat(str, "\n");
                 send(new_socket, response, strlen(response), 0); // Send intermediate sum
-                printf("Sent: %s\n", response);
+                // printf("Sent: %s\n", response);
             }
         }
 
