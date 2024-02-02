@@ -3,6 +3,22 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <unistd.h>
+
+#define BUFFER_SIZE 1024
+
+int process_string(const char *str, char *response) {
+    int sum = 0;
+    for (int i = 0; str[i] != '\0'; ++i) {
+        if (str[i] < '0' || str[i] > '9') { //compare character with these ascii values essentially
+            strcpy(response, "Sorry cannot compute!");
+            return -1; //if out of bounds return and respond accordingly
+        }
+        sum += str[i] - '0';
+    }
+    sprintf(response, "%d", sum); // Convert sum into string
+    return sum; // Return sum to check if it's a single digit
+}
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -11,7 +27,7 @@ int main(int argc, char *argv[]) {
     }
     int PORT = atoi(argv[1]);
     int sockfd;
-    char buffer[128];
+    char buffer[BUFFER_SIZE];
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
@@ -34,12 +50,21 @@ int main(int argc, char *argv[]) {
         perror("Binding failed");
         exit(EXIT_FAILURE);
     }
+    while(1) {
+        // Receive data from client
+        int len = recvfrom(sockfd, (char *)buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&client_addr, &addr_len);
+        buffer[len] = '\0';
 
-    // Receive data from client
-    int len = recvfrom(sockfd, (char *)buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&client_addr, &addr_len);
-    buffer[len] = '\0';
+        // printf("Connected to client on Port: %d", PORT);
 
-    printf("Connected to client on Port: %s", PORT);
+        char response[BUFFER_SIZE];
+        int result = process_string(buffer, response);
+            // Send response to client
+            sendto(sockfd, response, strlen(response), 0, (const struct sockaddr *)&client_addr, addr_len);
+        if (result >= 0 && result < 10) {
+            break;
+        }
+    }
 
     // Close the socket
     close(sockfd);
