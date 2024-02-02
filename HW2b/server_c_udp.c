@@ -51,9 +51,9 @@ int main(int argc, char *argv[]) {
     }
 
     while (1) {
-        char buffer[BUFFER_SIZE];
-        char response[BUFFER_SIZE];
-        char tempBuffer[BUFFER_SIZE]; // Temporary buffer for intermediate sums
+        char buffer[BUFFER_SIZE] = {0};
+        char response[BUFFER_SIZE] = {0};
+        char tempBuffer[BUFFER_SIZE] = {0}; // Temporary buffer for intermediate sums
 
         int len = recvfrom(sockfd, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&client_addr, &addr_len);
         buffer[len] = '\0';

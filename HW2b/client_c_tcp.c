@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
     const char* SERVER_IP = argv[1];
     int PORT = atoi(argv[2]);
     int sockfd;
-    struct sockaddr_in server_addr;
+    struct sockaddr_in serverAddr;
     char buffer[BUFFER_SIZE];
 
     // Create socket
@@ -28,15 +28,15 @@ int main(int argc, char *argv[]) {
     }
 
     // Set server address
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(PORT);
-    if (inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr) <= 0) {
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(PORT);
+    if (inet_pton(AF_INET, SERVER_IP, &serverAddr.sin_addr) <= 0) {
         perror("Invalid address/Address not supported");
         exit(EXIT_FAILURE);
     }
 
     // Connect to server
-    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+    if (connect(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
         perror("Connection failed");
         exit(EXIT_FAILURE);
     }
@@ -46,28 +46,32 @@ int main(int argc, char *argv[]) {
     printf("Enter string: ");
     fgets(buffer, BUFFER_SIZE, stdin);
     buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
+    // printf("Sending: %s\n", buffer);
 
     // Send data to server
-    const char* message = "Hello, server!";
-    if (sendto(sockfd, message, strlen(message), 0, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+    if (send(sockfd, buffer, strlen(buffer), 0) < 0) {
         perror("Failed to send data to server");
         exit(EXIT_FAILURE);
     }
+    
     // Receive response from server
-    socklen_t serverAddrLen = sizeof(serverAddr);
     while (1) {
-        int len = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&serverAddr, &serverAddrLen);
+        int len = recv(sockfd, buffer, sizeof(buffer), 0);
+            if (len <= 0) {
+                if (len == 0) {
+                    // Server closed the connection
+                    // printf("Server closed the connection.\n");
+                } else {
+                    // An error occurred
+                    perror("Failed to receive data from server");
+                }
+                break; // Exit loop
+            }
         buffer[len] = '\0'; // Null-terminate the received string
-
         printf("From server: %s\n", buffer);
-
-        // Check for end of communication conditions
-        if (strcmp(buffer, "Sorry cannot compute!") == 0 || (len == 1 && buffer[0] >= '0' && buffer[0] <= '9')) {
-            break;
-        }
     }
+
     // Close the socket
     close(sockfd);
-
     return 0;
 }

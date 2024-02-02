@@ -7,7 +7,7 @@
 
 #define BUFFER_SIZE 1024
 
-int process_string(const char *str, char *response) {
+int sum_of_digits(const char *str, char *response) {
     int sum = 0;
     for (int i = 0; str[i] != '\0'; ++i) {
         if (str[i] < '0' || str[i] > '9') { //compare character with these ascii values essentially
@@ -26,14 +26,10 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     int PORT = atoi(argv[1]);
-    int sockfd;
-    char buffer[BUFFER_SIZE];
-
-    int new_socket, valread;
+    int sockfd, new_socket;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
-    char *hello = "Hello from server";
 
     // Create socket 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -42,7 +38,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Set socket options
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
         perror("setsockopt failed");
         exit(EXIT_FAILURE);
     }
@@ -53,44 +49,55 @@ int main(int argc, char *argv[]) {
     address.sin_port = htons(PORT);
 
     // Bind socket to the specified address and port
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    if (bind(sockfd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("Binding failed");
         exit(EXIT_FAILURE);
     }
 
     // Listen for incoming connections
-    if (listen(server_fd, 3) < 0) {
+    if (listen(sockfd, 3) < 0) {
         perror("listen failed");
         exit(EXIT_FAILURE);
     }
 
-    // Accept incoming connection
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
-        perror("accept failed");
-        exit(EXIT_FAILURE);
+    while(1) {
+        char buffer[BUFFER_SIZE];
+        char response[BUFFER_SIZE];
+        char tempBuffer[BUFFER_SIZE];
+
+        // Accept client connection
+        if ((new_socket = accept(sockfd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) {
+            perror("accept");
+            exit(EXIT_FAILURE);
+        }
+
+        // Receive message from client
+        int len = recv(new_socket, buffer, BUFFER_SIZE, 0);
+        // printf("Received: %s\n", buffer);
+        if (len > 0) {
+            buffer[len] = '\0';
+
+            int sum = sum_of_digits(buffer, response);
+            char* str = malloc (sizeof(response) + 2);
+            strcpy(str, response);
+            strcat(str, "\n");
+            // Send initial response or error message
+            send(new_socket, response, strlen(response), 0);
+            // printf("Sent: %s\n", response);
+            // For any subsequent sums if needed
+            while (sum >= 10) {
+                strcpy(tempBuffer, response); // Use the previous response as the next input
+                sum = sum_of_digits(tempBuffer, response); // Calculate the new sum
+                char* str = malloc (sizeof(response) + 2);
+                strcpy(str, response);
+                strcat(str, "\n");
+                send(new_socket, response, strlen(response), 0); // Send intermediate sum
+            }
+        }
+
+        // Close the socket for this client
+        close(new_socket);
     }
-    // while(1) {
-    //     // Receive data from client
-    //     int len = recvfrom(sockfd, (char *)buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&client_addr, &addr_len);
-    //     buffer[len] = '\0';
-
-    //     // printf("Connected to client on Port: %d", PORT);
-
-    //     char response[BUFFER_SIZE];
-    //     int result = process_string(buffer, response);
-    //         // Send response to client
-    //         sendto(sockfd, response, strlen(response), 0, (const struct sockaddr *)&client_addr, addr_len);
-    //     if (result >= 0 && result < 10) {
-    //         break;
-    //     }
-    // }
-    // Read data from the client
-    valread = read(new_socket, buffer, BUFFER_SIZE);
-    printf("Client: %s\n", buffer);
-
-    // Send a response to the client
-    send(new_socket, hello, strlen(hello), 0);
-    printf("Hello message sent\n");
-
+    close(sockfd);
     return 0;
 }
