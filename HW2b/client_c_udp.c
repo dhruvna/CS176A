@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 130 //128 is the max string length, include 1 more to null terminate it
 
 int main(int argc, char *argv[]) {
     if(argc != 3) {
@@ -41,9 +41,7 @@ int main(int argc, char *argv[]) {
     fgets(buffer, BUFFER_SIZE, stdin);
     buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
 
-    // Send data to server
-    const char* message = "Hello, server!";
-    if (sendto(sockfd, message, strlen(message), 0, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+    if (sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         perror("Failed to send data to server");
         exit(EXIT_FAILURE);
     }
@@ -57,13 +55,12 @@ int main(int argc, char *argv[]) {
         printf("From server: %s\n", buffer);
 
         // Check for end of communication conditions
-        if (strcmp(buffer, "Sorry cannot compute!") == 0 || (len == 1 && buffer[0] >= '0' && buffer[0] <= '9')) {
+        if (strcmp(buffer, "Sorry, cannot compute!") == 0 || (len == 1 && buffer[0] >= '0' && buffer[0] <= '9')) {
             break;
         }
     }
 
     // Close socket
     close(sockfd);
-
     return 0;
 }
