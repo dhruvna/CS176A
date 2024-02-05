@@ -35,18 +35,17 @@ int main(int argc, char *argv[]) { //take in server ip and port
         perror("Invalid address/ Address not supported");
         exit(EXIT_FAILURE);
     }
-
-    // Get input from user
-    printf("Enter string: ");
-    fgets(buffer, BUFFER_SIZE, stdin);
-    buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
-
-    // Send data to server
-    if (sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
-        perror("Failed to send data to server");
-        exit(EXIT_FAILURE);
+    // send 10 messages, one every second. Messages should be of the form "PING {#} {timestamp}"
+    for (int i = 1; i <= 10; i++) {
+        sprintf(buffer, "PING %d %ld", i, time(NULL));
+        if (sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+            perror("Failed to send data to server");
+            exit(EXIT_FAILURE);
+        }
+        //
+        sleep(1);
     }
-    
+
     socklen_t serverAddrLen = sizeof(serverAddr);
     while (1) {
         // Receive data from server
