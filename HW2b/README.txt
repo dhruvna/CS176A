@@ -33,3 +33,5 @@ Then we move to the next. This ensures that we can parse through TCP packets eve
 
 
 UDP was relatively straight forward, but parsing TCP was quite the challenge. 
+
+I used geeksforgeeks and the man pages of recv, recvfrom, send, sendto as well.
