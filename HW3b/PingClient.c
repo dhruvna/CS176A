@@ -49,10 +49,8 @@ int main(int argc, char *argv[]) { //take in server ip and port
         
         struct timeval start_time, current_time;
         gettimeofday(&start_time, NULL);
-
         sprintf(buffer, "PING %d %ld", i, time(NULL));
-        // Send message
-        //print it first for debug purposes
+        //Send message to server
         if (sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
             perror("Failed to send data to server");
             exit(EXIT_FAILURE);
@@ -74,29 +72,27 @@ int main(int argc, char *argv[]) { //take in server ip and port
             printf("Request timeout for seq#=%d\n", i);
             rtt[i] = -1;
         } else {
+            // Process response
             pack_recv++;
             gettimeofday(&current_time, NULL);
+            // Calculate RTT
             double elapsed_time = (current_time.tv_sec - start_time.tv_sec) + (current_time.tv_usec - start_time.tv_usec) / 1000000.0;
             rtt[i] = elapsed_time;
-            if (rtt[i] < min) {
-                min = rtt[i];
-            }
-            if (rtt[i] > max) {
-                max = rtt[i];
-            }
+            if (rtt[i] < min) min = rtt[i];
+            if (rtt[i] > max) max = rtt[i];
             sum += rtt[i];
+            // Print response
             printf("PING received from %s: seq#=%d time=%.3lf ms\n", SERVER_IP, i, elapsed_time);
         }
         sleep(1);
     }
+    //Final statistics
     printf("--- %s ping statistics ---\n", SERVER_IP);
-
     double avg = sum / 10;
-    if(pack_recv == 0) {
+    if(pack_recv == 0)
         printf("%d packets transmitted, %d received, %.0f%% packet loss\n", 10, pack_recv, (10 - pack_recv) / 10.0 * 100);
-    } else {
+    else
         printf("%d packets transmitted, %d received, %.0f%% packet loss rtt min/avg/max = %.3lf %.3lf %.3lf ms\n", 10, pack_recv, (10 - pack_recv) / 10.0 * 100, min, avg, max);
-    }
     // Close socket
     close(sockfd);
     return 0;
