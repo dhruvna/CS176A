@@ -3,7 +3,7 @@ ARGS = -Wall
 
 all: pingclient
 
-pingclient: pingclient.c
-	$(CC) $(ARGS) -o pingclient pingclient.c
+pingclient: PingClient.c
+	$(CC) $(ARGS) -o pingclient PingClient.c
 clean:
 	rm -f *.o pingclient *~
