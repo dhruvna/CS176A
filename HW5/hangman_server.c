@@ -1,17 +1,55 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <unistd.h>
+#include <time.h>
 
-#define BUFFER_SIZE 129 //128 is the max string length, include 1 more to null terminate it
+
+#define BUFFER_SIZE 1024 
+
+char* getWord() {
+    FILE *file = fopen("hangman_words.txt","r");
+    if(file == NULL) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+    int num_words = 0;
+    char c;
+    while ((c = fgetc(file)) != EOF) {
+        if(c == '\n') {
+            num_words++;
+        }
+    }
+    rewind(file);
+
+    srand(time(NULL));
+    int random_word = rand() % num_words;
+
+    char* word = NULL;
+    size_t len = 0;
+    ssize_t read;
+    int current_word = 0;
+    while ((read = getline(&word, &len, file)) != -1) {
+        if (current_word == random_word) {
+            fclose(file);
+            return word;
+        }
+        current_word++;
+    }
+
+    fclose(file);
+    return NULL; // Error: random line not found
+}
 
 int main(int argc, char *argv[]) { // take in port number
     if (argc != 2) {
         printf("Usage: %s <port>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
+    // char* word = getWord();
+    // printf("Word: %s", word);
     int PORT = atoi(argv[1]);
     int sockfd, new_socket;
     struct sockaddr_in address;
@@ -68,3 +106,5 @@ int main(int argc, char *argv[]) { // take in port number
     close(sockfd);
     return 0;
 }
+
+// Write a fucntion to Read in the file hangman_words.txt and randomly select one line from it
