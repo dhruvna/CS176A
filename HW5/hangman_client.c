@@ -42,10 +42,10 @@ int main(int argc, char *argv[]) { //take in server ip and port
     }
 
     // Get input from user
-    printf("Enter string: "); 
+    printf("Ready to start game? (y/n):"); 
     fgets(buffer, BUFFER_SIZE, stdin);
     buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
-    // printf("Sending: %s\n", buffer);
+    printf("Sending: %s\n", buffer);
 
     // Send data to server
     if (send(sockfd, buffer, strlen(buffer), 0) < 0) {

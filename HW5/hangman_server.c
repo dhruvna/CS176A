@@ -48,8 +48,6 @@ int main(int argc, char *argv[]) { // take in port number
         printf("Usage: %s <port>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-    // char* word = getWord();
-    // printf("Word: %s", word);
     int PORT = atoi(argv[1]);
     int sockfd, new_socket;
     struct sockaddr_in address;
@@ -95,11 +93,14 @@ int main(int argc, char *argv[]) { // take in port number
             perror("accept");
             exit(EXIT_FAILURE);
         }
+        printf("Client connected\n");
+        char* word = getWord();
+        printf("Word: %s", word);
 
         // Receive message from client
         int len = recv(new_socket, buffer, BUFFER_SIZE, 0);
         printf("Received: %s\n", buffer);
-
+        // if the received buffer is "y", then start the game
         // Close the socket for this client
         close(new_socket);
     }
