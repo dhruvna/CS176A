@@ -105,6 +105,11 @@ void *handle_client(void *client_socket) {
 
     while((message_length = recv(game->sock, buffer, BUFFER_SIZE - 1, 0)) > 0) {
         buffer[message_length] = '\0'; // Ensure the buffer is null-terminated
+        if(message_length > 1) {
+            // Debug print for unexpected input length; consider handling as needed
+            printf("Received extra characters beyond the first guess: %s\n", buffer);
+            continue; // Skip processing this input
+        }
         process_guess(game, buffer[0]); // Process the first character as a guess
 
         if (strcmp(game->word, game->display_word) == 0) {

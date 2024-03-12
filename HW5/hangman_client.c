@@ -17,6 +17,7 @@ struct sockaddr_in serv_addr;
 void start_game(int sockfd);
 void send_message(int sockfd, char *message, size_t msg_length);
 void receive_and_print_server_response(int sockfd);
+void clear_input_buffer();
 
 int main(int argc, char *argv[]) { //take in server ip and port
     if(argc != 3) {
@@ -56,12 +57,20 @@ int main(int argc, char *argv[]) { //take in server ip and port
     return 0;
 }
 
+void clear_input_buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF) { } // Discard characters until end-of-line or end-of-file
+}
+
 void start_game(int sockfd) {
     char guess[MAX_GUESS_LENGTH];
     char start_signal[SERVER_MSG_LEN] = {0}; // Empty message to signal game start
 
     printf("Ready to start game? (y/n): ");
+    
     fgets(guess, MAX_GUESS_LENGTH, stdin);
+    clear_input_buffer();
+
     if (guess[0] == 'n') {
         printf("Exiting game.\n");
         exit(EXIT_SUCCESS);
@@ -73,10 +82,18 @@ void start_game(int sockfd) {
     while (1) {
         printf("Letter to guess: ");
         fgets(guess, MAX_GUESS_LENGTH, stdin);
+        clear_input_buffer();
+        guess[strspn(guess, "\n")] = 0;
+        if(strlen(guess) == 0) {
+            // printf("Your Guess: %s\n", guess);
+            // printf("Error! Please guess one letter.\n");
+            continue;
+        }
+        
         // Validate input
-        if(strlen(guess) > 1 && guess[1] != '\n') {
+        if(strlen(guess) > 1) {
             printf("Error! Please guess one letter.\n");
-            while(getchar() != '\n'); // Flush stdin
+            // while(getchar() != '\n'); // Flush stdin
             continue;
         }
 
@@ -88,12 +105,19 @@ void start_game(int sockfd) {
 }
 
 void send_message(int sockfd, char *message, size_t msg_length) {
-    send(sockfd, message, msg_length, 0);
+    if(send(sockfd, message, msg_length, 0) < 0) {
+        perror("Send failed");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void receive_and_print_server_response(int sockfd) {
     char buffer[BUFFER_SIZE];
     int bytes_received = recv(sockfd, buffer, BUFFER_SIZE - 1, 0);
+    if (bytes_received < 0) {
+        perror("Receive failed");
+        exit(EXIT_FAILURE);
+    }
     if (bytes_received > 0) {
         buffer[bytes_received] = '\0'; // Null-terminate the string
         printf("%s\n", buffer); // Display the message from the server
