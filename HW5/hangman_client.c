@@ -7,7 +7,38 @@
 #include <unistd.h>
 
 #define BUFFER_SIZE 129 //128 is the max string length, include 1 more to null terminate it
+int sockfd;
+struct sockaddr_in serverAddr;
+char buffer[BUFFER_SIZE];
 
+void initializeGame() {
+    // Get input from user
+    printf("Ready to start game? (y/n):"); 
+    fgets(buffer, BUFFER_SIZE, stdin);
+    printf("buffer: %s\n", buffer);
+    if(buffer[0] == 'n') {
+        // printf("Goodbye\n");
+        close(sockfd);
+        exit(EXIT_SUCCESS);
+    } else if(buffer[0] != 'y') {
+        printf("Invalid input. Please enter 'y' or 'n'\n");
+        exit(EXIT_FAILURE);
+    } else {
+        buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
+        printf("Sending: %s\n", buffer);     
+    }
+
+    // Send data to server
+    if (send(sockfd, buffer, strlen(buffer), 0) < 0) {
+        perror("Failed to send data to server");
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+
+int messageLen = 0;
+char data[] = "";
 int main(int argc, char *argv[]) { //take in server ip and port
     if(argc != 3) {
         printf("Usage: %s <server_ip> <port>\n", argv[0]);
@@ -16,9 +47,6 @@ int main(int argc, char *argv[]) { //take in server ip and port
     
     const char* SERVER_IP = argv[1];
     int PORT = atoi(argv[2]);
-    int sockfd;
-    struct sockaddr_in serverAddr;
-    char buffer[BUFFER_SIZE];
 
     // Create socket
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -41,17 +69,29 @@ int main(int argc, char *argv[]) { //take in server ip and port
         exit(EXIT_FAILURE);
     }
 
-    // Get input from user
-    printf("Ready to start game? (y/n):"); 
-    fgets(buffer, BUFFER_SIZE, stdin);
-    buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
-    printf("Sending: %s\n", buffer);
+    // Initialize game
+    initializeGame();
 
-    // Send data to server
-    if (send(sockfd, buffer, strlen(buffer), 0) < 0) {
-        perror("Failed to send data to server");
-        exit(EXIT_FAILURE);
-    }
+    // // Get input from user
+    // printf("Ready to start game? (y/n):"); 
+    // fgets(buffer, BUFFER_SIZE, stdin);
+    // if(buffer[0] == 'n') {
+    //     // printf("Goodbye\n");
+    //     close(sockfd);
+    //     exit(EXIT_SUCCESS);
+    // } else if(buffer[0] != 'y') {
+    //     printf("Invalid input. Please enter 'y' or 'n'\n");
+    //     exit(EXIT_FAILURE);
+    // } else {
+    //     buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
+    //     printf("Sending: %s\n", buffer);     
+    // }
+
+    // // Send data to server
+    // if (send(sockfd, buffer, strlen(buffer), 0) < 0) {
+    //     perror("Failed to send data to server");
+    //     exit(EXIT_FAILURE);
+    // }
     
     int bytesReceived;
     // Read data from the server

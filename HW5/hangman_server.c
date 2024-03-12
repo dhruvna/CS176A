@@ -33,6 +33,9 @@ char* getWord() {
     int current_word = 0;
     while ((read = getline(&word, &len, file)) != -1) {
         if (current_word == random_word) {
+            size_t ln = strlen(word) - 1;
+            if (word[ln] == '\n')
+                word[ln] = '\0';
             fclose(file);
             return word;
         }
@@ -42,6 +45,8 @@ char* getWord() {
     fclose(file);
     return NULL; // Error: random line not found
 }
+
+bool    
 
 int main(int argc, char *argv[]) { // take in port number
     if (argc != 2) {
@@ -95,17 +100,17 @@ int main(int argc, char *argv[]) { // take in port number
         }
         printf("Client connected\n");
         char* word = getWord();
-        printf("Word: %s", word);
+        printf("Word: %s\n", word);
 
         // Receive message from client
         int len = recv(new_socket, buffer, BUFFER_SIZE, 0);
         printf("Received: %s\n", buffer);
         // if the received buffer is "y", then start the game
         // Close the socket for this client
+
+        
         close(new_socket);
     }
     close(sockfd);
     return 0;
 }
-
-// Write a fucntion to Read in the file hangman_words.txt and randomly select one line from it
