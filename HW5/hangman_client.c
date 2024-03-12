@@ -5,14 +5,18 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <ctype.h>
 
-#define BUFFER_SIZE 129 //128 is the max string length, include 1 more to null terminate it
+#define SERVER_MSG_LEN 1
+#define MAX_GUESS_LENGTH 2
+#define BUFFER_SIZE 1024 
 
-char buffer[BUFFER_SIZE];
 int client_fd;
 struct sockaddr_in serv_addr;
 
-void initializeGame();
+void start_game(int sockfd);
+void send_message(int sockfd, char *message, size_t msg_length);
+void receive_and_print_server_response(int sockfd);
 
 int main(int argc, char *argv[]) { //take in server ip and port
     if(argc != 3) {
@@ -20,6 +24,8 @@ int main(int argc, char *argv[]) { //take in server ip and port
         exit(EXIT_FAILURE);
     }
 
+    const char* SERVER_IP = argv[1];
+    int PORT = atoi(argv[2]);
     // Create socket
     client_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (client_fd < 0) {
@@ -27,8 +33,6 @@ int main(int argc, char *argv[]) { //take in server ip and port
         exit(EXIT_FAILURE);
     }
     
-    const char* SERVER_IP = argv[1];
-    int PORT = atoi(argv[2]);
     // Set server address
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
@@ -44,81 +48,54 @@ int main(int argc, char *argv[]) { //take in server ip and port
         exit(EXIT_FAILURE);
     }
 
-    // Initialize game
-    // initializeGame();
+    printf("Connected to server\n");
 
-    // // Get input from user
-    // printf("Ready to start game? (y/n):"); 
-    // fgets(buffer, BUFFER_SIZE, stdin);
-    // if(buffer[0] == 'n') {
-    //     // printf("Goodbye\n");
-    //     close(client_fd);
-    //     exit(EXIT_SUCCESS);
-    // } else if(buffer[0] != 'y') {
-    //     printf("Invalid input. Please enter 'y' or 'n'\n");
-    //     exit(EXIT_FAILURE);
-    // } else {
-    //     buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
-    //     printf("Sending: %s\n", buffer);     
-    // }
+    start_game(client_fd); // Start game after connection is established (no need to initialize game)
 
-    // // Send data to server
-    // if (send(client_fd, buffer, strlen(buffer), 0) < 0) {
-    //     perror("Failed to send data to server");
-    //     exit(EXIT_FAILURE);
-    // }
-    
-    int bytesReceived;
-    // Read data from the server
-    while ((bytesReceived = recv(client_fd, buffer, BUFFER_SIZE, 0)) > 0) {
-        buffer[bytesReceived] = '\0'; // Null-terminate the received data
-        
-        char *ptr = buffer; // Pointer to track the current position in the buffer
-        char *end; // Pointer to track the end of the current message
-        while ((end = strchr(ptr, '\n')) != NULL) {
-            *end = '\0'; // Replace the newline with a null terminator to create a string for the current message
-            if (*ptr) { // If the string is not empty
-                printf("From server: %s\n", ptr); // Print the message
-            }
-            ptr = end + 1; // Move past the current message
-        }
-
-        if (*ptr) { // If there's remaining text after the last newline, print it
-            printf("From server: %s\n", ptr);
-        }
-    }
-
-    if (bytesReceived < 0) {
-        perror("recv failed");
-    } else if (bytesReceived == 0) {
-        // printf("Server closed the connection.\n");
-    }
-    // Close the socket
     close(client_fd);
     return 0;
 }
 
-void initializeGame() {
-    // Get input from user
-    printf("Ready to start game? (y/n):"); 
-    fgets(buffer, BUFFER_SIZE, stdin);
-    printf("buffer: %s\n", buffer);
-    if(buffer[0] == 'n') {
-        // printf("Goodbye\n");
-        close(client_fd);
+void start_game(int sockfd) {
+    char guess[MAX_GUESS_LENGTH];
+    char start_signal[SERVER_MSG_LEN] = {0}; // Empty message to signal game start
+
+    printf("Ready to start game? (y/n): ");
+    fgets(guess, MAX_GUESS_LENGTH, stdin);
+    if (guess[0] == 'n') {
+        printf("Exiting game.\n");
         exit(EXIT_SUCCESS);
-    } else if(buffer[0] != 'y') {
-        printf("Invalid input. Please enter 'y' or 'n'\n");
-        exit(EXIT_FAILURE);
-    } else {
-        buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
-        printf("Sending: %s\n", buffer);     
     }
 
-    // Send data to server
-    if (send(client_fd, buffer, strlen(buffer), 0) < 0) {
-        perror("Failed to send data to server");
-        exit(EXIT_FAILURE);
+    // Send game start signal
+    send_message(sockfd, start_signal, sizeof(start_signal));
+
+    while (1) {
+        printf("Letter to guess: ");
+        fgets(guess, MAX_GUESS_LENGTH, stdin);
+        // Validate input
+        if(strlen(guess) > 1 && guess[1] != '\n') {
+            printf("Error! Please guess one letter.\n");
+            while(getchar() != '\n'); // Flush stdin
+            continue;
+        }
+
+        // Convert to lowercase before sending to server
+        guess[0] = tolower(guess[0]);
+        send_message(sockfd, guess, 1); // Send only the first character
+        receive_and_print_server_response(sockfd);
     }
 }
 
+void send_message(int sockfd, char *message, size_t msg_length) {
+    send(sockfd, message, msg_length, 0);
+}
+
+void receive_and_print_server_response(int sockfd) {
+    char buffer[BUFFER_SIZE];
+    int bytes_received = recv(sockfd, buffer, BUFFER_SIZE - 1, 0);
+    if (bytes_received > 0) {
+        buffer[bytes_received] = '\0'; // Null-terminate the string
+        printf("%s\n", buffer); // Display the message from the server
+    }
+}

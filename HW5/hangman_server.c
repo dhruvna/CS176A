@@ -5,49 +5,28 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <time.h>
+#include <ctype.h>
 #include <pthread.h>
 
 #define MAX_CLIENTS 3
 #define BUFFER_SIZE 1024 
+#define MAX_ATTEMPTS 6
+#define WORDS_FILE "hangman_words.txt"
+
+typedef struct {
+    int sock;
+    char word[9]; // 8 letter word + null terminator
+    char display_word[9]; // 8 letter word + null terminator
+    int attempts_left;
+} GameState;
 
 int client_count = 0;
 pthread_mutex_t client_count_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void *handle_client(void *client_socket);
-int setupServer();
-char *getWord();
-
-void *handle_client(void *client_socket) {
-    int sock = *((int *)client_socket);
-    free(client_socket);
-
-    pthread_mutex_lock(&client_count_mutex);
-    if (client_count >= MAX_CLIENTS) {
-        pthread_mutex_unlock(&client_count_mutex);
-        const char *message = "server-overloaded";
-        printf("Extra client connection closed.\n");
-        send(sock, message, strlen(message), 0);
-        close(sock);
-        return NULL;
-    }
-    client_count++;
-    pthread_mutex_unlock(&client_count_mutex);
-
-    // Handle client communication here
-    char buffer[1024];
-    while (recv(sock, buffer, 1024, 0) > 0) {
-        printf("Message from client: %s\n", buffer);
-        send(sock, buffer, strlen(buffer), 0); // Echo back the received message
-        memset(buffer, 0, sizeof(buffer)); // Clear the buffer
-    }
-
-    pthread_mutex_lock(&client_count_mutex);
-    client_count--;
-    pthread_mutex_unlock(&client_count_mutex);
-
-    close(sock);
-    return NULL;
-}
+char *select_word();
+void init_display_word(char *display, char *word);
+void process_guess(GameState *game, char guess);
 
 int main(int argc, char *argv[]) { // take in port number
     if (argc != 2) {
@@ -56,7 +35,7 @@ int main(int argc, char *argv[]) { // take in port number
     }
     int PORT = atoi(argv[1]);
 
-    int server_fd, new_socket, *new_sock;
+    int server_fd, new_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
 
@@ -78,7 +57,7 @@ int main(int argc, char *argv[]) { // take in port number
     }
 
     // Listen for incoming connections
-    if (listen(server_fd, 3) < 0) {
+    if (listen(server_fd, MAX_CLIENTS) < 0) {
         perror("listen failed");
         exit(EXIT_FAILURE);
     }
@@ -89,68 +68,110 @@ int main(int argc, char *argv[]) { // take in port number
             perror("accept");
             exit(EXIT_FAILURE);
         }
-
         printf("Client connected successfully.\n"); // Add this line
 
-        new_sock = malloc(1);
-        *new_sock = new_socket;
-        
-        pthread_t thread_id;
-        if (pthread_create(&thread_id, NULL, handle_client, (void*)new_sock) < 0) {
-            perror("could not create thread");
+        pthread_mutex_lock(&client_count_mutex);
+        if (client_count >= MAX_CLIENTS) {
+            pthread_mutex_unlock(&client_count_mutex);
+            const char *message = "server-overloaded";
+            printf("Extra client connection closed.\n");
+            send(new_socket, message, strlen(message), 0);
+            close(new_socket);
             continue;
         }
+        client_count++;
+        pthread_mutex_unlock(&client_count_mutex);
 
-        // printf("Client connected\n");
-        // char* word = getWord();
-        // printf("Word: %s\n", word);
+        GameState *game = malloc(sizeof(GameState));
+        game->sock = new_socket;
+        strcpy(game->word, select_word());
+        init_display_word(game->display_word, game->word);
+        game->attempts_left = MAX_ATTEMPTS;
 
-        // // Receive message from client
-        // int len = recv(new_socket, buffer, BUFFER_SIZE, 0);
-        // printf("Received: %s\n", buffer);
-        // // if the received buffer is "y", then start the game
-        // // Close the socket for this client
-
-        
-        // close(new_socket);
+        pthread_t tid;
+        if (pthread_create(&tid, NULL, handle_client, (void*)game) < 0) {
+            perror("Failed to create thread");
+            continue;
+        }
     }
     close(server_fd);
     return 0;
 }
 
-char* getWord() {
+void *handle_client(void *client_socket) {
+    GameState *game = (GameState *)client_socket;
+    char buffer[BUFFER_SIZE];
+    ssize_t message_length;
+
+    while((message_length = recv(game->sock, buffer, BUFFER_SIZE - 1, 0)) > 0) {
+        buffer[message_length] = '\0'; // Ensure the buffer is null-terminated
+        process_guess(game, buffer[0]); // Process the first character as a guess
+
+        if (strcmp(game->word, game->display_word) == 0) {
+            send(game->sock, "You Won!!\n", 29, 0);
+            break;
+        } else if (game->attempts_left <= 0) {
+            send(game->sock, "You lose!\n", 20, 0);
+            break;
+        } else {
+            // Send current state of the game to the client
+            char game_state[BUFFER_SIZE];
+            snprintf(game_state, BUFFER_SIZE, "Word: %s Attempts left: %d\n", game->display_word, game->attempts_left);
+            send(game->sock, game_state, strlen(game_state), 0);
+        }
+    }
+
+    pthread_mutex_lock(&client_count_mutex);
+    client_count--;
+    pthread_mutex_unlock(&client_count_mutex);
+
+    close(game->sock);
+    free(game);
+    return NULL;
+    
+}
+
+char* select_word() {
+    static char word[9]; // 8 letter word + null terminator
     FILE *file = fopen("hangman_words.txt","r");
     if(file == NULL) {
         perror("Error opening file");
         exit(EXIT_FAILURE);
     }
     int num_words = 0;
-    char c;
-    while ((c = fgetc(file)) != EOF) {
-        if(c == '\n') {
-            num_words++;
-        }
+    while (fgets(word, sizeof(word), file) != NULL) {
+        num_words++;
     }
-    rewind(file);
-
-    srand(time(NULL));
-    int random_word = rand() % num_words;
-
-    char* word = NULL;
-    size_t len = 0;
-    ssize_t read;
-    int current_word = 0;
-    while ((read = getline(&word, &len, file)) != -1) {
-        if (current_word == random_word) {
-            size_t ln = strlen(word) - 1;
-            if (word[ln] == '\n')
-                word[ln] = '\0';
-            fclose(file);
-            return word;
-        }
-        current_word++;
+    int chosen_word = rand() % num_words;
+    fseek(file, 0, SEEK_SET);
+    for (int i = 0; i <= chosen_word; i++) {
+        fgets(word, sizeof(word), file);
     }
+    word[strcspn(word, "\n")] = 0; // Remove newline
+    fclose(file);
+    return word;
 
     fclose(file);
     return NULL; // Error: random line not found
 }  
+
+void init_display_word(char *display, char *word) {
+    while (*word != '\0') {
+        *display++ = (*word++ == ' ') ? ' ' : '_';
+    }
+    *display = '\0';
+}
+
+void process_guess(GameState *game, char guess) {
+    int match_found = 0;
+    guess = tolower(guess);
+    for (int i = 0; game->word[i] != '\0'; i++) {
+        if(tolower(game->word[i]) == guess) { // Convert to lowercase for comparison
+            if(game->display_word[i] == '_') { // Only update if not already guessed
+                game->display_word[i] = game->word[i];
+                match_found = 1;
+            }
+        }
+    }
+    if (!match_found) game->attempts_left--;
+}
