@@ -1,83 +1,58 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
 
 #define BUFFER_SIZE 129 //128 is the max string length, include 1 more to null terminate it
-int sockfd;
-struct sockaddr_in serverAddr;
+
 char buffer[BUFFER_SIZE];
+int client_fd;
+struct sockaddr_in serv_addr;
 
-void initializeGame() {
-    // Get input from user
-    printf("Ready to start game? (y/n):"); 
-    fgets(buffer, BUFFER_SIZE, stdin);
-    printf("buffer: %s\n", buffer);
-    if(buffer[0] == 'n') {
-        // printf("Goodbye\n");
-        close(sockfd);
-        exit(EXIT_SUCCESS);
-    } else if(buffer[0] != 'y') {
-        printf("Invalid input. Please enter 'y' or 'n'\n");
-        exit(EXIT_FAILURE);
-    } else {
-        buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
-        printf("Sending: %s\n", buffer);     
-    }
+void initializeGame();
 
-    // Send data to server
-    if (send(sockfd, buffer, strlen(buffer), 0) < 0) {
-        perror("Failed to send data to server");
-        exit(EXIT_FAILURE);
-    }
-}
-
-
-
-int messageLen = 0;
-char data[] = "";
 int main(int argc, char *argv[]) { //take in server ip and port
     if(argc != 3) {
         printf("Usage: %s <server_ip> <port>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-    
-    const char* SERVER_IP = argv[1];
-    int PORT = atoi(argv[2]);
 
     // Create socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
+    client_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_fd < 0) {
         perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
-
+    
+    const char* SERVER_IP = argv[1];
+    int PORT = atoi(argv[2]);
     // Set server address
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(PORT);
-    if (inet_pton(AF_INET, SERVER_IP, &serverAddr.sin_addr) <= 0) { //bind to specific ip and port
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+
+    if (inet_pton(AF_INET, SERVER_IP, &serv_addr.sin_addr) <= 0) { //bind to specific ip and port
         perror("Invalid address/Address not supported");
         exit(EXIT_FAILURE);
     }
 
     // Connect to server
-    if (connect(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
+    if (connect(client_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("Connection failed");
         exit(EXIT_FAILURE);
     }
 
     // Initialize game
-    initializeGame();
+    // initializeGame();
 
     // // Get input from user
     // printf("Ready to start game? (y/n):"); 
     // fgets(buffer, BUFFER_SIZE, stdin);
     // if(buffer[0] == 'n') {
     //     // printf("Goodbye\n");
-    //     close(sockfd);
+    //     close(client_fd);
     //     exit(EXIT_SUCCESS);
     // } else if(buffer[0] != 'y') {
     //     printf("Invalid input. Please enter 'y' or 'n'\n");
@@ -88,14 +63,14 @@ int main(int argc, char *argv[]) { //take in server ip and port
     // }
 
     // // Send data to server
-    // if (send(sockfd, buffer, strlen(buffer), 0) < 0) {
+    // if (send(client_fd, buffer, strlen(buffer), 0) < 0) {
     //     perror("Failed to send data to server");
     //     exit(EXIT_FAILURE);
     // }
     
     int bytesReceived;
     // Read data from the server
-    while ((bytesReceived = recv(sockfd, buffer, BUFFER_SIZE, 0)) > 0) {
+    while ((bytesReceived = recv(client_fd, buffer, BUFFER_SIZE, 0)) > 0) {
         buffer[bytesReceived] = '\0'; // Null-terminate the received data
         
         char *ptr = buffer; // Pointer to track the current position in the buffer
@@ -119,6 +94,31 @@ int main(int argc, char *argv[]) { //take in server ip and port
         // printf("Server closed the connection.\n");
     }
     // Close the socket
-    close(sockfd);
+    close(client_fd);
     return 0;
 }
+
+void initializeGame() {
+    // Get input from user
+    printf("Ready to start game? (y/n):"); 
+    fgets(buffer, BUFFER_SIZE, stdin);
+    printf("buffer: %s\n", buffer);
+    if(buffer[0] == 'n') {
+        // printf("Goodbye\n");
+        close(client_fd);
+        exit(EXIT_SUCCESS);
+    } else if(buffer[0] != 'y') {
+        printf("Invalid input. Please enter 'y' or 'n'\n");
+        exit(EXIT_FAILURE);
+    } else {
+        buffer[strcspn(buffer, "\n")] = 0; // Remove newline character or it will mess with server processing
+        printf("Sending: %s\n", buffer);     
+    }
+
+    // Send data to server
+    if (send(client_fd, buffer, strlen(buffer), 0) < 0) {
+        perror("Failed to send data to server");
+        exit(EXIT_FAILURE);
+    }
+}
+
