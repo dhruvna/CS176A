@@ -7,8 +7,6 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 
-#define SERVER_MSG_LEN 1
-#define MAX_GUESS_LENGTH 2
 #define BUFFER_SIZE 1024 
 
 int client_fd;
@@ -50,58 +48,45 @@ int main(int argc, char *argv[]) { //take in server ip and port
     }
 
     printf("Connected to server\n");
-
-    start_game(client_fd); // Start game after connection is established (no need to initialize game)
-
+    start_game(client_fd);
     close(client_fd);
     return 0;
 }
 
-void clear_input_buffer() {
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF) { } // Discard characters until end-of-line or end-of-file
-}
-
 void start_game(int sockfd) {
-    char guess[MAX_GUESS_LENGTH];
-    char start_signal[SERVER_MSG_LEN] = {0}; // Empty message to signal game start
+    char guess[2];
 
-    printf("Ready to start game? (y/n): ");
-    
-    fgets(guess, MAX_GUESS_LENGTH, stdin);
+    printf("Ready to start game? (y/n):");
+    fgets(guess, sizeof(guess), stdin);
     clear_input_buffer();
 
-    if (guess[0] == 'n') {
+    if (tolower(guess[0]) == 'n') {
         printf("Exiting game.\n");
         exit(EXIT_SUCCESS);
     }
 
     // Send game start signal
-    send_message(sockfd, start_signal, sizeof(start_signal));
+    send_message(sockfd, "", 0);
 
     while (1) {
         printf("Letter to guess: ");
-        fgets(guess, MAX_GUESS_LENGTH, stdin);
+        if (fgets(guess, sizeof(guess), stdin) == NULL) {
+            continue; // Handle unexpected NULL input
+        }
         clear_input_buffer();
-        guess[strspn(guess, "\n")] = 0;
-        if(strlen(guess) == 0) {
-            // printf("Your Guess: %s\n", guess);
-            // printf("Error! Please guess one letter.\n");
-            continue;
-        }
-        
-        // Validate input
-        if(strlen(guess) > 1) {
+        if (isalpha(guess[0])) {
+            guess[0] = tolower(guess[0]); // Normalize input to lowercase
+            send_message(sockfd, guess, 1); // Send the guess to the server
+            receive_and_print_server_response(sockfd); // Handle server response
+        } else {
             printf("Error! Please guess one letter.\n");
-            // while(getchar() != '\n'); // Flush stdin
-            continue;
         }
-
-        // Convert to lowercase before sending to server
-        guess[0] = tolower(guess[0]);
-        send_message(sockfd, guess, 1); // Send only the first character
-        receive_and_print_server_response(sockfd);
     }
+}
+
+void clear_input_buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF) { }
 }
 
 void send_message(int sockfd, char *message, size_t msg_length) {
