@@ -72,6 +72,7 @@ void start_game(int sockfd) {
         printf("Letter to guess: ");
         if (fgets(guess, sizeof(guess), stdin) == NULL) {
             continue; // Handle unexpected NULL input
+            
         }
         clear_input_buffer();
         if (isalpha(guess[0])) {
@@ -106,8 +107,45 @@ void receive_and_print_server_response(int sockfd) {
         perror("Receive failed");
         exit(EXIT_FAILURE);
     }
-    if (bytes_received > 0) {
-        buffer[bytes_received] = '\0'; // Null-terminate the string
-        printf("%s\n", buffer); // Display the message from the server
+    if (bytes_received > 0) { 
+        unsigned char msg_flag = buffer[0];
+        // printf("msg_flag: %d\n", msg_flag);
+        
+        if (msg_flag == 0) {
+            // It's a game control packet
+            unsigned char word_length = buffer[1];
+            unsigned char num_incorrect = buffer[2];
+            buffer[bytes_received] = '\0'; // Null-terminate the data for safety
+
+            // Print the display word on one line
+            printf(">>>");
+            for (int i = 0; i < word_length; i++) {
+                printf("%c", buffer[3 + i]);
+            }
+            printf("\n");
+
+            // Print the incorrect guesses on a new line if there are any
+            if (num_incorrect > 0) {
+                printf("Incorrect Guesses: ");
+                for (int i = 0; i < num_incorrect; i++) {
+                    printf("%c", buffer[3 + word_length + i]);
+                }
+                printf("\n");
+            }
+            // printf("\n");
+
+        } else {
+            // It's a message
+            // Ensure the message is null-terminated
+            buffer[msg_flag + 1] = '\0';
+            printf("%s\n", buffer + 1); // Print the message starting at the second byte
+            if (strcmp((char *)(buffer + 1), "Game Over!") == 0 ||
+                strcmp((char *)(buffer + 1), "You Win!") == 0 ||
+                strcmp((char *)(buffer + 1), "You Lose :(") == 0) {
+                // Clean up and exit
+                close(sockfd);
+                exit(EXIT_SUCCESS);
+            }
+        }
     }
 }

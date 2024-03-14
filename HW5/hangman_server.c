@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) { // take in port number
         printf("Usage: %s <port>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-
+    srand(time(NULL));
     int PORT = atoi(argv[1]);
     int server_fd, new_socket;
     struct sockaddr_in address;
@@ -114,13 +114,19 @@ void *handle_client(void *client_socket) {
     ssize_t message_length;
 
     recv(game->sock, buffer, BUFFER_SIZE - 1, 0);
+    printf("Received: %s\n", buffer);
     send_game_state(game); 
 
+    // Receive and process guesses
     while((message_length = recv(game->sock, buffer, BUFFER_SIZE - 1, 0)) > 0) {
         buffer[message_length] = '\0'; // Ensure the buffer is null-terminated
         process_guess(game, buffer[0]); // Process the first character as a guess
-
         if (strcmp(game->word, game->display_word) == 0) {
+            //send a message saying "The word was " + game->word
+            char gameWord[25];
+            strcpy(gameWord, "The word was ");
+            strcat(gameWord, game->word);
+            send_message(game, gameWord);
             send_message(game, "You Win!");
             send_message(game, "Game Over!");
             break;
@@ -147,46 +153,27 @@ void send_game_state(GameState *game) {
     unsigned char msg_flag = 0; // Indicates a game control packet
     unsigned char word_length = strlen(game->word);
     unsigned char num_incorrect = game->num_incorrect;
-    printf("msg_flag: %d\n", msg_flag);
-    printf("word_length: %d\n", word_length);
-    printf("num_incorrect: %d\n", num_incorrect);
-    // char packet[BUFFER_SIZE];
-    char *packet = malloc(BUFFER_SIZE);
-    int packet_index = 0;
+
+    char *packet = malloc(3 + word_length + num_incorrect);
+
     packet[0] = msg_flag;
     packet[1] = word_length;
     packet[2] = num_incorrect;
-    // strcpy(packet, msg_flag);
-    // strcpy(packet + 1, &word_length);
-    // strcpy(packet + 2, &num_incorrect);
-    
     // Add the display word (with guessed letters and underscores)
-    // for(int i = 0; i < word_length; i++) {
-    //     packet[packet_index++] = game->display_word[i];
-    // }
-    // for (int i = 0; i < word_length; ++i) {
-    //     packet[3 + i] = game->display_word[i];
-    // }
-    memcpy(packet + packet_index, game->display_word, word_length);
-    packet_index += word_length;
-
+    for (int i = 0; i < word_length; ++i) {
+        packet[3 + i] = game->display_word[i];
+    }
     // Add incorrect guesses
-    // for(int i = 0; i < num_incorrect; i++) {
-    //     packet[packet_index++] = game->incorrect_guesses[i];
+    for(int i = 0; i < num_incorrect; i++) {
+        packet[3 + word_length + i] = game->incorrect_guesses[i];
+    }
+    send(game->sock, packet, 3 + word_length + num_incorrect, 0);
+
+    // Print the packet for debugging
+    // for (int i = 0; i < (3 + word_length + num_incorrect); i++) {
+    //     printf("%02X ", (unsigned char)packet[i]);
     // }
-
-    memcpy(packet + packet_index, game->incorrect_guesses, num_incorrect);
-    packet_index += num_incorrect;
-
-    // packet[packet_index++] = '\0'; 
-    // Print out all fields of the gamestate
-    
-    printf("Word: %s\n", game->word);
-    printf("Display word: %s\n", game->display_word);
-    printf("Incorrect guesses: %s\n", game->incorrect_guesses);
-    printf("Attempts left: %d\n", game->attempts_left);
-    printf("Num incorrect: %d\n", game->num_incorrect);
-    send(game->sock, packet, packet_index, 0);
+    // printf("\n");
     free(packet);
 }
 
