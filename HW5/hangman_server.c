@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <pthread.h>
 
+#define PORT 8080
 #define MAX_CLIENTS 3
 #define BUFFER_SIZE 1024 
 #define MAX_ATTEMPTS 6
@@ -36,13 +37,15 @@ void send_message(GameState *game, const char *message);
 char *select_word(char *word);
 void load_words(char words[][MAX_WORD_LENGTH], int *count);
 
-int main(int argc, char *argv[]) { // take in port number
-    if (argc != 2) {
-        printf("Usage: %s <port>\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-    srand(time(NULL));
-    int PORT = atoi(argv[1]);
+// int main(int argc, char *argv[]) { // take in port number
+//     if (argc != 2) {
+//         printf("Usage: %s <port>\n", argv[0]);
+//         exit(EXIT_FAILURE);
+//     }
+
+int main() {
+    // int PORT = atoi(argv[1]);
+    
     int server_fd, new_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
@@ -76,13 +79,14 @@ int main(int argc, char *argv[]) { // take in port number
             perror("accept");
             exit(EXIT_FAILURE);
         }
-        printf("Client connected successfully.\n"); // Add this line
+        // printf("Client connected successfully.\n"); // Add this line
 
         pthread_mutex_lock(&client_count_mutex);
         if (client_count >= MAX_CLIENTS) {
             pthread_mutex_unlock(&client_count_mutex);
-            printf("Extra client connection closed.\n");
-            send_message(NULL, "server-overloaded.");
+            // printf("Extra client connection closed.\n");
+            //use standard socket sending to send "server-overloaded"
+            send(new_socket, "Server overloaded", 17, 0);
             close(new_socket);
             continue;
         }
@@ -113,9 +117,20 @@ void *handle_client(void *client_socket) {
     char buffer[BUFFER_SIZE];
     ssize_t message_length;
 
-    recv(game->sock, buffer, BUFFER_SIZE - 1, 0);
-    printf("Received: %s\n", buffer);
-    send_game_state(game); 
+    // Wait for the game start signal (empty message)
+    message_length = recv(game->sock, buffer, BUFFER_SIZE - 1, 0);
+    if (message_length <= 0) {
+        // Handle error or closed connection by the client
+        printf("Client did not send start signal or closed the connection.\n");
+        pthread_exit(NULL); // Or other cleanup and exit logic
+    }
+    // printf("Received game start signal: '%s'\n", buffer); // Debug message
+
+    // Send initial game state
+    send_game_state(game);
+    // recv(game->sock, buffer, BUFFER_SIZE - 1, 0);
+    // printf("Received: %s\n", buffer);
+    // send_game_state(game); 
 
     // Receive and process guesses
     while((message_length = recv(game->sock, buffer, BUFFER_SIZE - 1, 0)) > 0) {
@@ -223,7 +238,7 @@ char *select_word(char *word) {
     }
     int index = rand() % 15; // Assuming you have exactly 15 words
     strcpy(word, words[index]);
-    printf("Selected word: %s\n", word);
+    // printf("Selected word: %s\n", word);
     return word;
 }
 

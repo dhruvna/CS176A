@@ -8,6 +8,8 @@
 #include <ctype.h>
 
 #define BUFFER_SIZE 1024 
+#define SERVER_IP "127.0.0.1"
+#define PORT 8080
 
 int client_fd;
 struct sockaddr_in serv_addr;
@@ -17,14 +19,14 @@ void send_message(int sockfd, char *message, size_t msg_length);
 void receive_and_print_server_response(int sockfd);
 void clear_input_buffer();
 
-int main(int argc, char *argv[]) { //take in server ip and port
-    if(argc != 3) {
-        printf("Usage: %s <server_ip> <port>\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
-    const char* SERVER_IP = argv[1];
-    int PORT = atoi(argv[2]);
+// int main(int argc, char *argv[]) { //take in server ip and port
+//     if(argc != 3) {
+//         printf("Usage: %s <server_ip> <port>\n", argv[0]);
+//         exit(EXIT_FAILURE);
+//     }
+int main() {
+    // const char* SERVER_IP = argv[1];
+    // int PORT = atoi(argv[2]);
     // Create socket
     client_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (client_fd < 0) {
@@ -47,7 +49,7 @@ int main(int argc, char *argv[]) { //take in server ip and port
         exit(EXIT_FAILURE);
     }
 
-    printf("Connected to server\n");
+    // printf("Connected to server\n");
     start_game(client_fd);
     close(client_fd);
     return 0;
@@ -56,24 +58,33 @@ int main(int argc, char *argv[]) { //take in server ip and port
 void start_game(int sockfd) {
     char guess[2];
 
-    printf("Ready to start game? (y/n):");
-    fgets(guess, sizeof(guess), stdin);
+    printf("Ready to start game? (y/n): ");
+    if (!fgets(guess, sizeof(guess), stdin)) {
+        // printf("\nEOF received. Exiting game.\n");
+        close(sockfd);
+        exit(EXIT_SUCCESS);
+    }
+    // fgets(guess, sizeof(guess), stdin);
     clear_input_buffer();
 
     if (tolower(guess[0]) == 'n') {
         printf("Exiting game.\n");
+        close(client_fd);
         exit(EXIT_SUCCESS);
     }
 
     // Send game start signal
-    send_message(sockfd, "", 0);
+    send_message(sockfd, "0", 1);
+    // printf("Sent game start signal to server.\n"); // Debug message
 
     while (1) {
-        printf("Letter to guess: ");
-        if (fgets(guess, sizeof(guess), stdin) == NULL) {
-            continue; // Handle unexpected NULL input
-            
+        printf(">>>Letter to guess: ");
+        if (!fgets(guess, sizeof(guess), stdin)) {
+                // printf("\nEOF received. Exiting game.\n");
+                close(sockfd);
+                exit(EXIT_SUCCESS);
         }
+        // fgets(guess, sizeof(guess), stdin);
         clear_input_buffer();
         if (isalpha(guess[0])) {
             guess[0] = tolower(guess[0]); // Normalize input to lowercase
@@ -119,16 +130,17 @@ void receive_and_print_server_response(int sockfd) {
 
             // Print the display word on one line
             printf(">>>");
-            for (int i = 0; i < word_length; i++) {
-                printf("%c", buffer[3 + i]);
-            }
-            printf("\n");
+            //iterate through the buffer and print the display word with a space after each character, except for the last character
+            for(int i = 0; i < word_length-1; i++) {
+                printf("%c ", buffer[3 + i]);
+            } 
+            printf("%c\n", buffer[3 + word_length - 1]);
 
             // Print the incorrect guesses on a new line if there are any
             if (num_incorrect > 0) {
-                printf("Incorrect Guesses: ");
+                printf(">>>Incorrect Guesses:");
                 for (int i = 0; i < num_incorrect; i++) {
-                    printf("%c", buffer[3 + word_length + i]);
+                    printf(" %c", buffer[3 + word_length + i]);
                 }
                 printf("\n");
             }
