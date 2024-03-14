@@ -50,7 +50,7 @@ int main() {
 }
 
 void start_game(int sockfd) {
-    char guess[2];
+    char guess[3];
 
     printf(">>>Ready to start game? (y/n): ");
     if (!fgets(guess, sizeof(guess), stdin)) {
@@ -59,35 +59,43 @@ void start_game(int sockfd) {
         exit(EXIT_SUCCESS);
     }
     // fgets(guess, sizeof(guess), stdin);
-    clear_input_buffer();
 
-    if (tolower(guess[0]) == 'n') {
+    if (tolower(guess[0]) == 'y') {
+        // Send game start signal
+        send_message(sockfd, "0", 1);
+        // printf("Sent game start signal to server.\n"); // Debug message
+        receive_and_print_server_response(sockfd);
+        while (1) {
+            printf(">>>Letter to guess: ");
+            if (!fgets(guess, sizeof(guess), stdin)) {
+                // printf("\nEOF received. Exiting game.\n");
+                close(sockfd);
+                exit(EXIT_SUCCESS);
+            }
+            if(strchr(guess, '\n') == NULL) {
+                clear_input_buffer();
+            }
+
+            // printf("Guess is long: %d\n", strlen(guess));
+            // guess[strcspn(guess, "\n")] = 0; // Remove trailing newline character
+            //if the guess is more than one character, print an error message and prompt the user to guess again
+            // printf("Guess is NOW only long: %d\n", strlen(guess));
+            // fgets(guess, sizeof(guess), stdin);
+            // clear_input_buffer();
+            if (isalpha(guess[0]) && guess[1] == '\n') {
+                guess[0] = tolower(guess[0]); // Normalize input to lowercase
+                send_message(sockfd, guess, 1); // Send the guess to the server
+                receive_and_print_server_response(sockfd); // Handle server response
+            } else {
+                printf("Error! Please guess one letter.\n");
+            }
+        }
+    } else {
         printf("Exiting game.\n");
         close(client_fd);
         exit(EXIT_SUCCESS);
     }
-
-    // Send game start signal
-    send_message(sockfd, "0", 1);
-    // printf("Sent game start signal to server.\n"); // Debug message
-    receive_and_print_server_response(sockfd);
-    while (1) {
-        printf(">>>Letter to guess: ");
-        if (!fgets(guess, sizeof(guess), stdin)) {
-                // printf("\nEOF received. Exiting game.\n");
-                close(sockfd);
-                exit(EXIT_SUCCESS);
-        }
-        // fgets(guess, sizeof(guess), stdin);
-        clear_input_buffer();
-        if (isalpha(guess[0]) && guess[1] == '\n') {
-            guess[0] = tolower(guess[0]); // Normalize input to lowercase
-            send_message(sockfd, guess, 1); // Send the guess to the server
-            receive_and_print_server_response(sockfd); // Handle server response
-        } else {
-            printf("Error! Please guess one letter.\n");
-        }
-    }
+ 
 }
 
 void clear_input_buffer() {
