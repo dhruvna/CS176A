@@ -37,14 +37,7 @@ void send_message(GameState *game, const char *message);
 char *select_word(char *word);
 void load_words(char words[][MAX_WORD_LENGTH], int *count);
 
-// int main(int argc, char *argv[]) { // take in port number
-//     if (argc != 2) {
-//         printf("Usage: %s <port>\n", argv[0]);
-//         exit(EXIT_FAILURE);
-//     }
-
 int main() {
-    // int PORT = atoi(argv[1]);
     
     int server_fd, new_socket;
     struct sockaddr_in address;
@@ -96,7 +89,6 @@ int main() {
         GameState *game = malloc(sizeof(GameState));
         game->sock = new_socket;
         select_word(game->word);
-        // strcpy(game->word, select_word());
         init_display_word(game->display_word, game->word);
         game->attempts_left = MAX_ATTEMPTS;
         game->num_incorrect = 0;
@@ -124,10 +116,10 @@ void *handle_client(void *client_socket) {
         printf("Client did not send start signal or closed the connection.\n");
         pthread_exit(NULL); // Or other cleanup and exit logic
     }
-    // printf("Received game start signal: '%s'\n", buffer); // Debug message
-
-    // Send initial game state
+    printf("Received game start signal: '%s'\n", buffer); // Debug message
     send_game_state(game);
+    // Send initial game state
+    // send_game_state(game);
     // recv(game->sock, buffer, BUFFER_SIZE - 1, 0);
     // printf("Received: %s\n", buffer);
     // send_game_state(game); 
@@ -141,13 +133,14 @@ void *handle_client(void *client_socket) {
             char gameWord[25];
             strcpy(gameWord, "The word was ");
             strcat(gameWord, game->word);
+            strcat(gameWord, "\n");
             send_message(game, gameWord);
-            send_message(game, "You Win!");
-            send_message(game, "Game Over!");
+            send_message(game, "You Win!\n");
+            send_message(game, "Game Over!\n");
             break;
         } else if (game->attempts_left <= 0) {
-            send_message(game, "You Lose :(");
-            send_message(game, "Game Over!");
+            send_message(game, "You Lose :(\n");
+            send_message(game, "Game Over!\n");
             break;
         } else {
             send_game_state(game);

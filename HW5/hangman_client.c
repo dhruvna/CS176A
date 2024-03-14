@@ -19,14 +19,8 @@ void send_message(int sockfd, char *message, size_t msg_length);
 void receive_and_print_server_response(int sockfd);
 void clear_input_buffer();
 
-// int main(int argc, char *argv[]) { //take in server ip and port
-//     if(argc != 3) {
-//         printf("Usage: %s <server_ip> <port>\n", argv[0]);
-//         exit(EXIT_FAILURE);
-//     }
+
 int main() {
-    // const char* SERVER_IP = argv[1];
-    // int PORT = atoi(argv[2]);
     // Create socket
     client_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (client_fd < 0) {
@@ -58,7 +52,7 @@ int main() {
 void start_game(int sockfd) {
     char guess[2];
 
-    printf("Ready to start game? (y/n): ");
+    printf(">>>Ready to start game? (y/n): ");
     if (!fgets(guess, sizeof(guess), stdin)) {
         // printf("\nEOF received. Exiting game.\n");
         close(sockfd);
@@ -76,7 +70,7 @@ void start_game(int sockfd) {
     // Send game start signal
     send_message(sockfd, "0", 1);
     // printf("Sent game start signal to server.\n"); // Debug message
-
+    receive_and_print_server_response(sockfd);
     while (1) {
         printf(">>>Letter to guess: ");
         if (!fgets(guess, sizeof(guess), stdin)) {
@@ -119,14 +113,20 @@ void receive_and_print_server_response(int sockfd) {
         exit(EXIT_FAILURE);
     }
     if (bytes_received > 0) { 
-        unsigned char msg_flag = buffer[0];
+        buffer[bytes_received] = '\0'; // Null-terminate the data for safety
         // printf("msg_flag: %d\n", msg_flag);
-        
+        if (strncmp(buffer + 1, "The word was", strlen("The word was")) == 0) {
+            printf("%s\n", buffer + 1);
+            // printf("game should end here");
+            close(sockfd);
+            exit(EXIT_SUCCESS);
+            // return;
+        }
+        unsigned char msg_flag = buffer[0];
         if (msg_flag == 0) {
             // It's a game control packet
             unsigned char word_length = buffer[1];
             unsigned char num_incorrect = buffer[2];
-            buffer[bytes_received] = '\0'; // Null-terminate the data for safety
 
             // Print the display word on one line
             printf(">>>");
@@ -144,7 +144,6 @@ void receive_and_print_server_response(int sockfd) {
                 }
                 printf("\n");
             }
-            // printf("\n");
 
         } else {
             // It's a message
