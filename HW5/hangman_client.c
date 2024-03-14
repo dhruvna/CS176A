@@ -99,7 +99,10 @@ void send_message(int sockfd, char *message, size_t msg_length) {
 void receive_and_print_server_response(int sockfd) {
     char buffer[BUFFER_SIZE];
     int bytes_received = recv(sockfd, buffer, BUFFER_SIZE - 1, 0);
+    // printf("bytes_received: %d\n", bytes_received);
+    // printf("buffer: %s\n", buffer);
     if (bytes_received < 0) {
+        printf("Nothing received from server.\n");
         perror("Receive failed");
         exit(EXIT_FAILURE);
     }

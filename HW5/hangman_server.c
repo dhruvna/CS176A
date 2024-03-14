@@ -27,11 +27,13 @@ int client_count = 0;
 pthread_mutex_t client_count_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void *handle_client(void *client_socket);
-char *select_word(char *word);
+
 void init_display_word(char *display, const char *word);
 void process_guess(GameState *game, char guess);
 void send_game_state(GameState *game);
 void send_message(GameState *game, const char *message);
+
+char *select_word(char *word);
 void load_words(char words[][MAX_WORD_LENGTH], int *count);
 
 int main(int argc, char *argv[]) { // take in port number
@@ -116,11 +118,6 @@ void *handle_client(void *client_socket) {
 
     while((message_length = recv(game->sock, buffer, BUFFER_SIZE - 1, 0)) > 0) {
         buffer[message_length] = '\0'; // Ensure the buffer is null-terminated
-        // if(message_length > 1) {
-        //     // Debug print for unexpected input length; consider handling as needed
-        //     printf("Received extra characters beyond the first guess: %s\n", buffer);
-        //     continue; // Skip processing this input
-        // }
         process_guess(game, buffer[0]); // Process the first character as a guess
 
         if (strcmp(game->word, game->display_word) == 0) {
@@ -133,10 +130,6 @@ void *handle_client(void *client_socket) {
             break;
         } else {
             send_game_state(game);
-            // // Send current state of the game to the client
-            // char game_state[BUFFER_SIZE];
-            // snprintf(game_state, BUFFER_SIZE, "Word: %s Attempts left: %d\n", game->display_word, game->attempts_left);
-            // send(game->sock, game_state, strlen(game_state), 0);
         }
     }
 
@@ -154,25 +147,47 @@ void send_game_state(GameState *game) {
     unsigned char msg_flag = 0; // Indicates a game control packet
     unsigned char word_length = strlen(game->word);
     unsigned char num_incorrect = game->num_incorrect;
-
-    char packet[BUFFER_SIZE];
+    printf("msg_flag: %d\n", msg_flag);
+    printf("word_length: %d\n", word_length);
+    printf("num_incorrect: %d\n", num_incorrect);
+    // char packet[BUFFER_SIZE];
+    char *packet = malloc(BUFFER_SIZE);
     int packet_index = 0;
-
-    packet[packet_index++] = msg_flag;
-    packet[packet_index++] = word_length;
-    packet[packet_index++] = num_incorrect;
-
+    packet[0] = msg_flag;
+    packet[1] = word_length;
+    packet[2] = num_incorrect;
+    // strcpy(packet, msg_flag);
+    // strcpy(packet + 1, &word_length);
+    // strcpy(packet + 2, &num_incorrect);
+    
     // Add the display word (with guessed letters and underscores)
-    for(int i = 0; i < word_length; i++) {
-        packet[packet_index++] = game->display_word[i];
-    }
+    // for(int i = 0; i < word_length; i++) {
+    //     packet[packet_index++] = game->display_word[i];
+    // }
+    // for (int i = 0; i < word_length; ++i) {
+    //     packet[3 + i] = game->display_word[i];
+    // }
+    memcpy(packet + packet_index, game->display_word, word_length);
+    packet_index += word_length;
 
     // Add incorrect guesses
-    for(int i = 0; i < num_incorrect; i++) {
-        packet[packet_index++] = game->incorrect_guesses[i];
-    }
+    // for(int i = 0; i < num_incorrect; i++) {
+    //     packet[packet_index++] = game->incorrect_guesses[i];
+    // }
 
+    memcpy(packet + packet_index, game->incorrect_guesses, num_incorrect);
+    packet_index += num_incorrect;
+
+    // packet[packet_index++] = '\0'; 
+    // Print out all fields of the gamestate
+    
+    printf("Word: %s\n", game->word);
+    printf("Display word: %s\n", game->display_word);
+    printf("Incorrect guesses: %s\n", game->incorrect_guesses);
+    printf("Attempts left: %d\n", game->attempts_left);
+    printf("Num incorrect: %d\n", game->num_incorrect);
     send(game->sock, packet, packet_index, 0);
+    free(packet);
 }
 
 void send_message(GameState *game, const char *message) {
@@ -202,6 +217,15 @@ void process_guess(GameState *game, char guess) {
     }
 }
 
+
+
+void init_display_word(char *display, const char *word) {
+    while (*word != '\0') {
+        *display++ = (*word++ == ' ') ? ' ' : '_';
+    }
+    *display = '\0';
+}
+
 char *select_word(char *word) {
     static char words[15][MAX_WORD_LENGTH];
     static int words_loaded = 0;
@@ -212,14 +236,8 @@ char *select_word(char *word) {
     }
     int index = rand() % 15; // Assuming you have exactly 15 words
     strcpy(word, words[index]);
+    printf("Selected word: %s\n", word);
     return word;
-}
-
-void init_display_word(char *display, const char *word) {
-    while (*word != '\0') {
-        *display++ = (*word++ == ' ') ? ' ' : '_';
-    }
-    *display = '\0';
 }
 
 void load_words(char words[][MAX_WORD_LENGTH], int *count) {
