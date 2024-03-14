@@ -8,7 +8,7 @@
 #include <ctype.h>
 #include <pthread.h>
 
-#define PORT 8080
+#define PORT 8081
 #define MAX_CLIENTS 3
 #define BUFFER_SIZE 1024 
 #define MAX_ATTEMPTS 6

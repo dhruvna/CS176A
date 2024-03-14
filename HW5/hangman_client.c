@@ -9,7 +9,7 @@
 
 #define BUFFER_SIZE 1024 
 #define SERVER_IP "127.0.0.1"
-#define PORT 8080
+#define PORT 8081
 
 int client_fd;
 struct sockaddr_in serv_addr;
@@ -65,6 +65,7 @@ void start_game(int sockfd) {
         send_message(sockfd, "0", 1);
         // printf("Sent game start signal to server.\n"); // Debug message
         receive_and_print_server_response(sockfd);
+        printf(">>>Incorrect Guesses:\n");
         while (1) {
             printf(">>>Letter to guess: ");
             if (!fgets(guess, sizeof(guess), stdin)) {
