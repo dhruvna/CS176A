@@ -65,7 +65,7 @@ void start_game(int sockfd) {
         send_message(sockfd, "0", 1);
         // printf("Sent game start signal to server.\n"); // Debug message
         receive_and_print_server_response(sockfd);
-        printf(">>>Incorrect Guesses:\n");
+        printf(">>>Incorrect Guesses: \n");
         while (1) {
             printf(">>>Letter to guess: ");
             if (!fgets(guess, sizeof(guess), stdin)) {
@@ -88,7 +88,7 @@ void start_game(int sockfd) {
                 send_message(sockfd, guess, 1); // Send the guess to the server
                 receive_and_print_server_response(sockfd); // Handle server response
             } else {
-                printf("Error! Please guess one letter.\n");
+                printf(">>>Error! Please guess one letter.\n");
             }
         }
     } else {
