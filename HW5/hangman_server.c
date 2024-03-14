@@ -116,7 +116,7 @@ void *handle_client(void *client_socket) {
         printf("Client did not send start signal or closed the connection.\n");
         pthread_exit(NULL); // Or other cleanup and exit logic
     }
-    printf("Received game start signal: '%s'\n", buffer); // Debug message
+    // printf("Received game start signal: '%s'\n", buffer); // Debug message
     send_game_state(game);
     // Send initial game state
     // send_game_state(game);

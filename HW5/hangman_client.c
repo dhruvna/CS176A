@@ -80,7 +80,7 @@ void start_game(int sockfd) {
         }
         // fgets(guess, sizeof(guess), stdin);
         clear_input_buffer();
-        if (isalpha(guess[0])) {
+        if (isalpha(guess[0]) && guess[1] == '\n') {
             guess[0] = tolower(guess[0]); // Normalize input to lowercase
             send_message(sockfd, guess, 1); // Send the guess to the server
             receive_and_print_server_response(sockfd); // Handle server response
