@@ -8,12 +8,13 @@
 #include <ctype.h>
 #include <pthread.h>
 
-#define PORT 8081
+#define PORT 8085
 #define MAX_CLIENTS 3
 #define BUFFER_SIZE 1024 
 #define MAX_ATTEMPTS 6
+#define MAX_WORDS 15
 #define WORDS_FILE "hangman_words.txt"
-#define MAX_WORD_LENGTH 9 // Biggest word is 8 letters + null terminator
+#define MAX_WORD_LENGTH 11 // Biggest word is 8 letters + null terminator
 
 typedef struct {
     int sock;
@@ -54,6 +55,10 @@ int main() {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
 
+    if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
+        perror("setsockopt(SO_REUSEADDR) failed");
+        exit(EXIT_FAILURE);
+    }
     // Bind socket to the specified port
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("Binding failed");
@@ -130,11 +135,17 @@ void *handle_client(void *client_socket) {
         process_guess(game, buffer[0]); // Process the first character as a guess
         if (strcmp(game->word, game->display_word) == 0) {
             //send a message saying "The word was " + game->word
-            char gameWord[25];
+            char gameWord[100];
             strcpy(gameWord, "The word was ");
             strcat(gameWord, game->word);
-            strcat(gameWord, "\n");
+            //remove any white space after gameWord
+            // gameWord[strcspn(gameWord, "\n")] = '\0'; // Remove newline character a diff way idk
+            // gameWord[strcspn(gameWord, "\r")] = '\0';
+// 
+            // strcat(gameWord, "");
             send_message(game, gameWord);
+            
+            // printf("WORD: %s -----", gameWord);
             send_message(game, "You Win!\n");
             send_message(game, "Game Over!\n");
             break;
@@ -154,7 +165,7 @@ void *handle_client(void *client_socket) {
     close(game->sock);
     free(game);
     pthread_exit(NULL);
-    
+
 }
 
 void send_game_state(GameState *game) {
@@ -229,6 +240,7 @@ char *select_word(char *word) {
         load_words(words, &count);
         words_loaded = 1;
     }
+    
     int index = rand() % 15; // Assuming you have exactly 15 words
     strcpy(word, words[index]);
     // printf("Selected word: %s\n", word);
@@ -237,13 +249,18 @@ char *select_word(char *word) {
 
 void load_words(char words[][MAX_WORD_LENGTH], int *count) {
     FILE *file = fopen(WORDS_FILE, "r");
+    char line[MAX_WORD_LENGTH];
+
     if (!file) {
         perror("Unable to open words file");
         exit(EXIT_FAILURE);
     }
-    char line[MAX_WORD_LENGTH];
-    while (fgets(line, sizeof(line), file)) {
-        strtok(line, "\n"); // Remove newline character
+    
+    while (fgets(line, sizeof(line), file) && *count < MAX_WORDS) {
+        line[strcspn(line, "\n")] = '\0'; // Remove newline character a diff way idk
+        line[strcspn(line, "\r")] = '\0'; // Remove carriage return character same thing
+        printf("Loaded word: %s", line);
+        printf("\n");
         strcpy(words[(*count)++], line);
     }
     fclose(file);

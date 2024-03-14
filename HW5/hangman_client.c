@@ -9,7 +9,7 @@
 
 #define BUFFER_SIZE 1024 
 #define SERVER_IP "127.0.0.1"
-#define PORT 8081
+#define PORT 8085
 
 int client_fd;
 struct sockaddr_in serv_addr;
@@ -66,10 +66,12 @@ void start_game(int sockfd) {
         // printf("Sent game start signal to server.\n"); // Debug message
         receive_and_print_server_response(sockfd);
         printf(">>>Incorrect Guesses: \n");
+        printf(">>>\n");
         while (1) {
             printf(">>>Letter to guess: ");
             if (!fgets(guess, sizeof(guess), stdin)) {
                 // printf("\nEOF received. Exiting game.\n");
+                printf("\n");
                 close(sockfd);
                 exit(EXIT_SUCCESS);
             }
@@ -125,6 +127,7 @@ void receive_and_print_server_response(int sockfd) {
         buffer[bytes_received] = '\0'; // Null-terminate the data for safety
         // printf("msg_flag: %d\n", msg_flag);
         if (strncmp(buffer + 1, "The word was", strlen("The word was")) == 0) {
+            printf(">>>");
             printf("%s\n", buffer + 1);
             // printf("game should end here");
             close(sockfd);
@@ -152,13 +155,15 @@ void receive_and_print_server_response(int sockfd) {
                     printf(" %c", buffer[3 + word_length + i]);
                 }
                 printf("\n");
+                printf(">>>\n");
             }
 
         } else {
             // It's a message
             // Ensure the message is null-terminated
             buffer[msg_flag + 1] = '\0';
-            printf("%s\n", buffer + 1); // Print the message starting at the second byte
+            printf(">>>");
+            printf("%s", buffer + 1); // Print the message starting at the second byte
             if (strcmp((char *)(buffer + 1), "Game Over!") == 0 ||
                 strcmp((char *)(buffer + 1), "You Win!") == 0 ||
                 strcmp((char *)(buffer + 1), "You Lose :(") == 0) {
