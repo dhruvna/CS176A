@@ -172,10 +172,13 @@ void print_game_state(const struct server_message *server_msg) {
             }
         }
         printf("\n");
-        printf(">>>Incorrect Guesses:");
+        printf(">>>Incorrect Guesses: ");
         for (int i = 0; i < server_msg->num_incorrect; i++) {
-            printf(" %c", server_msg->data[server_msg->word_length + i]);
+            printf("%c", server_msg->data[server_msg->word_length + i]);
+            if (i < server_msg->num_incorrect - 1) {
+                printf(" ");
         }
+        
         printf("\n>>>\n");
     }
 }

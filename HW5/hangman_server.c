@@ -181,10 +181,10 @@ void *handle_client(void *client_socket) {
             }
             if(server_msg.num_incorrect >= 6) {
                 memset(&server_msg.data, 0, sizeof(server_msg.data));
-                strcpy(server_msg.data, "The word was: ");
+                strcpy(server_msg.data, "The word was ");
                 strcat(server_msg.data, words[index]);
                 strcat(server_msg.data, "\n");
-                strcat(server_msg.data, ">>>YOU LOSE!\n");
+                strcat(server_msg.data, ">>>You Lose!\n");
                 server_msg.msg_flag = strlen(server_msg.data);
                 server_msg.data[sizeof(server_msg.data) - 1] = '\0';
                 server_msg.word_length = 0;
@@ -204,10 +204,10 @@ void *handle_client(void *client_socket) {
             // Print winning messages
             if(word_complete == 1) {
                 memset(&server_msg.data, 0, sizeof(server_msg.data));
-                strcpy(server_msg.data, "The word was: ");
+                strcpy(server_msg.data, "The word was ");
                 strcat(server_msg.data, words[index]);
                 strcat(server_msg.data, "\n");
-                strcat(server_msg.data, ">>>YOU WIN!\n");
+                strcat(server_msg.data, ">>>You Win!\n");
                 server_msg.msg_flag = strlen(server_msg.data);
                 server_msg.data[sizeof(server_msg.data) - 1] = '\0';
                 server_msg.word_length = 0;
