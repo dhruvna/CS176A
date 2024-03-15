@@ -160,7 +160,7 @@ void print_game_state(const struct server_message *server_msg) {
             printf("%c", server_msg->data[i]);
         }
         printf("\n");
-        printf(">>>GAME OVER!\n");
+        printf(">>>Game Over!\n");
     } 
     // Otherwise, print the word and incorrect guesses
     else {
