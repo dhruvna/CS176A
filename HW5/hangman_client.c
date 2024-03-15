@@ -7,11 +7,11 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 
+// Defining ip/port as constants because of Gradescope
 #define SERVER_IP "127.0.0.1"
-#define PORT 8085
+#define PORT 8080 
 
-struct server_message server_msg;
-
+//Create structs as per the assignment guidelines to make message passing simple
 struct server_message {
     short msg_flag;
     short word_length;
@@ -24,12 +24,14 @@ struct client_message {
     char data[2];
 };
 
-void send_message(int sockfd, int msg_length, char message);
+struct server_message server_msg;
 
+// Function prototypes
 void start_game(int sockfd);
 void run_game(int sockfd);
 char get_valid_guess();
 void print_game_state(const struct server_message *server_msg);
+void send_message(int sockfd, int msg_length, char message);
 
 int main() {
     // Create socket
@@ -54,33 +56,38 @@ int main() {
         perror("Connection failed");
         exit(EXIT_FAILURE);
     }
+
     start_game(client_fd);
     close(client_fd);
     return 0;
 }
 
+// Start game by receiving server message and sending game start signal
 void start_game(int sockfd) {
+    // Receive server message
     if(recv(sockfd, &server_msg, sizeof(server_msg), 0) <= 0) {
         perror("Receive failed");
         exit(EXIT_FAILURE);
     }
+    // If the server is overloaded, print message and exit
     if (server_msg.msg_flag > 0 && strcmp(server_msg.data, "server-overloaded") == 0) {
         printf(">>>%s\n", server_msg.data);
         close(sockfd);
         exit(EXIT_SUCCESS);
-    } else if (strcmp(server_msg.data, "OK") == 0) {
+    } 
+    // Otherwise, start the game and start taking input for guesses
+    else if (strcmp(server_msg.data, "OK") == 0) {
         printf(">>>Ready to start game? (y/n): ");
         char guess[3];
+        // Handle CTRL+D
         if (!fgets(guess, sizeof(guess), stdin)) {
-            // printf("\nEOF received. Exiting game.\n");
             close(sockfd);
             exit(EXIT_SUCCESS);
         }
 
+        // Send game start signal if input is either Y or y, otherwise exit
         if (tolower(guess[0]) == 'y') {
-            // Send game start signal
             send_message(sockfd, 0, '\0');
-            // printf("Sent game start signal to server.\n"); // Debug message
             run_game(sockfd);
         } else {
             printf("Exiting game.\n");
@@ -90,65 +97,9 @@ void start_game(int sockfd) {
     }
 }
 
-// void run_game(int sockfd) {
-//     int game_state = 0;
-//     char guess[100];
-
-//     while(!game_state) {
-//         if (recv(sockfd, &server_msg, sizeof(server_msg), 0) < 0) {
-//             printf("Nothing received from server.\n");
-//             perror("Receive failed");
-//             exit(EXIT_FAILURE);
-//         }
-//         if(server_msg.msg_flag != 0) {
-//             printf(">>>");
-//             for(int i = 0; i < server_msg.msg_flag; i++) {
-//                 printf("%c", server_msg.data[i]);
-//             }
-//             printf("\n");
-//             printf(">>>GAME OVER!\n");
-//             game_state = 1;
-//         }
-//         else if (server_msg.msg_flag == 0) {
-//             printf(">>>");
-//             for (int i = 0; i < server_msg.word_length; i++) {
-//                 printf("%c", server_msg.data[i]);
-//                 if (i < server_msg.word_length - 1) {
-//                     printf(" ");
-//                 }
-//             }
-//             printf("\n");
-//             printf(">>>Incorrect Guesses:");
-//             for (int i = 0; i < server_msg.num_incorrect; i++) {
-//                 printf(" %c", server_msg.data[server_msg.word_length + i]);
-//             }
-//             printf("\n>>>\n");
-//             int correct_guess = 0;
-//             while (!correct_guess) {
-//                 printf(">>>Letter to guess: ");
-//                 if (fgets(guess, sizeof(guess), stdin) == NULL) {
-//                     send_message(sockfd, 0, '\0');
-//                     printf("\n");
-//                     close(sockfd);
-//                     exit(EXIT_SUCCESS);
-//                 }
-//                 if (guess[strlen(guess) - 1] == '\n') {
-//                     guess[strlen(guess) - 1] = '\0';
-//                 }
-//                 if (strlen(guess) != 1 || !isalpha(guess[0])) {
-//                     printf(">>>Error! Please guess one letter.\n");
-//                     continue;
-//                 } else {
-//                     guess[0] = tolower(guess[0]);
-//                     correct_guess = 1;
-//                 }
-//             }
-//             send_message(sockfd, 1, guess[0]);
-//         }
-//     }
-// }
-
+// Run game by receiving server message and sending guesses
 void run_game(int sockfd) {
+    // Essentially a boolean to check if the game is over
     int game_state = 0;
 
     while(!game_state) {
@@ -159,7 +110,7 @@ void run_game(int sockfd) {
         }
 
         print_game_state(&server_msg);
-
+        // A guess will have no flag, otherwise the game is over
         if(server_msg.msg_flag == 0) {
             char guess = get_valid_guess(sockfd);
             send_message(sockfd, 1, guess);
@@ -169,21 +120,27 @@ void run_game(int sockfd) {
     }
 }
 
+// Get and validate guesses from the user
 char get_valid_guess(int sockfd) {
-    char guess[100];
+    // Guesses are only one character long
+    char guess[10]; //CODE WILL BREAK IF GUESS IS LONGER THAN 10 CHARACTERS, BUT THAT SHOULDNT BE TESTED, TODO: ERROR HANDLE THIS
     char valid_guess;
+    //Boolean to check if the guess is correct
     int correct_guess = 0;
     while (!correct_guess) {
         printf(">>>Letter to guess: ");
+        // Handle CTRL+D
         if (fgets(guess, sizeof(guess), stdin) == NULL) {
             send_message(sockfd, 0, '\0');
             printf("\n");
             close(sockfd);
             exit(EXIT_SUCCESS);
         }
+        // Remove newline character if present
         if (guess[strlen(guess) - 1] == '\n') {
             guess[strlen(guess) - 1] = '\0';
         }
+        // Validate guess as a single letter
         if (strlen(guess) != 1 || !isalpha(guess[0])) {
             printf(">>>Error! Please guess one letter.\n");
         } else {
@@ -194,7 +151,9 @@ char get_valid_guess(int sockfd) {
     return valid_guess;
 }
 
+// Print game state based on server message
 void print_game_state(const struct server_message *server_msg) { 
+    // If the message flag is not 0, a game control packet was sent
     if (server_msg->msg_flag != 0) {
         printf(">>>");
         for(int i = 0; i < server_msg->msg_flag; i++) {
@@ -202,7 +161,9 @@ void print_game_state(const struct server_message *server_msg) {
         }
         printf("\n");
         printf(">>>GAME OVER!\n");
-    } else {
+    } 
+    // Otherwise, print the word and incorrect guesses
+    else {
         printf(">>>");
         for (int i = 0; i < server_msg->word_length; i++) {
             printf("%c", server_msg->data[i]);
@@ -219,6 +180,7 @@ void print_game_state(const struct server_message *server_msg) {
     }
 }
 
+// Create client_msg and send it to the server
 void send_message(int sockfd, int msg_length, char message) {
     struct client_message client_msg;
     client_msg.msg_length = msg_length;
